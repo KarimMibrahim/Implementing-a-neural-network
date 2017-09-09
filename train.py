@@ -28,7 +28,7 @@ def load_csv(filename):
     
 x_training = load_csv("/Users/KarimM/Google Drive/PhD/Courses/Deep Learning/assignment1/Question2_123/x_train.csv")
 y_training = load_csv("/Users/KarimM/Google Drive/PhD/Courses/Deep Learning/assignment1/Question2_123/y_train.csv")
-
+TrainData = np.append(x_training, y_training, axis=1)
 
 """ 
 Forward network with one hidden layer 
