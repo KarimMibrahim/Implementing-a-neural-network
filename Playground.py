@@ -33,6 +33,9 @@ def sigmoid(activation):
 def sigmoid_diff(output):
 	return output * (1.0 - output)
 
+def softmax(x):
+    return np.exp(x) / np.exp(x).sum()
+
 """
 Network Implementation
 """
@@ -69,6 +72,7 @@ def forward_propagate(network, row):
                 neuron['output'] = relu(activation)
             new_inputs.append(neuron['output'])
         inputs = new_inputs
+    inputs = softmax(inputs)
     return inputs
 
 # Backpropagate error and store in neurons  [[[Get rid of loops]]]
@@ -91,9 +95,8 @@ def backward_propagate_error(network, expected,row,l_rate):
             if (i == len(network)-1):
                 neuron['delta'] = errors[j] * sigmoid_diff(neuron['output'])
             else: 
-                neuron['delta'] = errors[j] * relu_diff(neuron['output'])
-                
-    # updating the weights
+                neuron['delta'] = errors[j] * relu_diff(neuron['output'])              
+    # updating the weights for using mini batch gradient decent
     for i in range(len(network)):
         inputs = row[:-1]
         if i != 0:
@@ -105,19 +108,12 @@ def backward_propagate_error(network, expected,row,l_rate):
             
             
 # Update network weights with error  [[[Get rid of loops]]]
-def update_weights(network):
+def update_weights(network,batchSize):
     for i in range(len(network)):
         for neuron in network[i]:
-            neuron['weights'] += neuron['updatedWeights']
-            neuron['updatedWeights'] = 0
-#    for i in range(len(network)):
-#        inputs = row[:-1]
-#        if i != 0:
-#            inputs = [neuron['output'] for neuron in network[i - 1]]
-#        for neuron in network[i]:
-#            for j in range(len(inputs)):
-#                neuron['weights'][j] += l_rate * neuron['delta'] * inputs[j]
-#            neuron['weights'][-1] += l_rate * neuron['delta']
+            for j in range(len(neuron['weights'])):
+                neuron['weights'][j] += neuron['updatedWeights'][j]
+                neuron['updatedWeights'][j] = 0
             
             
 # Train a network for a fixed number of epochs
@@ -126,17 +122,15 @@ def train_network(network, train, l_rate, n_epoch, n_outputs,batchSize):
         sum_error = 0.0
         #updatedNetwork = network
         for i in range(len(train)):
+            #print i 
             row = train[i]
             outputs = forward_propagate(network, row)
             expected = [0 for i in range(n_outputs)]
             expected[row[-1]] = 1
-            sum_error += sum([(expected[i]-outputs[i])**2 for i in range(len(expected))])
+            sum_error += sum([(expected[j]-outputs[j])**2 for j in range(len(expected))])
             backward_propagate_error(network, expected, row, l_rate)
-            if i % batchSize == 0:
-                print i
-                update_weights(network)
-                print sum_error
-                sum_error = 0.0
+            if (i % batchSize == 0):
+                update_weights(network,batchSize)
         print('>epoch=%d, lrate=%.3f, error=%.3f' % (epoch, l_rate, sum_error))
         
 # Make a prediction with a network
@@ -183,6 +177,6 @@ x_training = x_training.astype(int)
 y_training = y_training.astype(int)
 y_training = y_training.reshape([len(y_training),1])
 TrainData = np.append(x_training, y_training, axis=1)      
-net = initialize_network(14,100,40,4)
-train_network(net,TrainData[0:1000],0.03,100,4)
+net = initialize_network(14,4,4)
+train_network(net,TrainData[0:1000],0.03,100,4,100)
 """
