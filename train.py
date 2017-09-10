@@ -13,6 +13,9 @@ def stablesoftmax(x):
 
 
 from csv import reader
+from numpy import genfromtxt
+import numpy as np
+
  
 # Load a CSV file
 def load_csv(filename):
@@ -26,9 +29,19 @@ def load_csv(filename):
 	return dataset
  
     
-x_training = load_csv("/Users/KarimM/Google Drive/PhD/Courses/Deep Learning/assignment1/Question2_123/x_train.csv")
-y_training = load_csv("/Users/KarimM/Google Drive/PhD/Courses/Deep Learning/assignment1/Question2_123/y_train.csv")
+x_training = genfromtxt("/Users/KarimM/Google Drive/PhD/Courses/Deep Learning/assignment1/Question2_123/x_train.csv",delimiter = ",")
+y_training = genfromtxt("/Users/KarimM/Google Drive/PhD/Courses/Deep Learning/assignment1/Question2_123/y_train.csv",delimiter = ",")
+x_training = x_training.astype(int)
+y_training = y_training.astype(int)
+y_training = y_training.reshape([len(y_training),1])
 TrainData = np.append(x_training, y_training, axis=1)
+
+x_test = genfromtxt("/Users/KarimM/Google Drive/PhD/Courses/Deep Learning/assignment1/Question2_123/x_test.csv",delimiter = ",")
+y_test = genfromtxt("/Users/KarimM/Google Drive/PhD/Courses/Deep Learning/assignment1/Question2_123/y_test.csv",delimiter = ",")
+x_test = x_test.astype(int)
+y_test = y_test.astype(int)
+y_test = y_test.reshape([len(y_test),1])
+TestData = np.append(x_test, y_test, axis=1)
 
 """ 
 Forward network with one hidden layer 
