@@ -7,7 +7,7 @@ Created on Sat Sep  9 14:18:53 2017
 """
 
 import numpy as np 
-from random import random
+from random import gauss
 import sys
 from math import exp
 import pickle
@@ -25,10 +25,12 @@ def relu_diff(input):
     if input > 0: 
         return 1.0 
     else: 
-        return 0.01
+        return 0.001
 
 def sigmoid(activation):
-	return 1.0 / (1.0 + exp(-activation))
+    if activation < 0:
+        return 1.0 - 1.0 / (1.0 + exp(activation))
+    return 1.0 / (1.0 + exp(-activation))
         
 def sigmoid_diff(output):
 	return output * (1.0 - output)
@@ -43,24 +45,23 @@ Network Implementation
 def initialize_network(*args):
     network = list()
     for layer_number in range(1,len(args)):
-        layer = [{'weights':[random() for i in range(args[layer_number-1] + 1)],
-                             'updatedWeights':np.zeros(args[layer_number-1] + 1),
-                             'output':0,
-                             'delta':0,
+        layer = [{'weights':[abs(gauss(0,0.001)) for i in range(args[layer_number-1] + 1)],
+                             'updatedWeights':[0.0] * (args[layer_number-1] + 1),
+                             'output':0.0,
+                             'delta':0.0,
                              } for i in range(args[layer_number])]
         network.append(layer)
     return network
 
 #Calculate neuron activation for an input
 def activate(weights, inputs):
-    activation = weights[-1]
-    for i in range(len(weights)-1):
-        activation += weights[i] * inputs[i]
+    activation = np.dot(weights[:-1],inputs)
+    activation += weights[-1]
     return activation
 
 # Forward propagate input to a network output [[[Get rid of loops]]]
 def forward_propagate(network, row):
-    inputs = row
+    inputs = row[:-1]
     for i in range(len(network)):
         layer = network[i]
         new_inputs = []
@@ -72,7 +73,7 @@ def forward_propagate(network, row):
                 neuron['output'] = relu(activation)
             new_inputs.append(neuron['output'])
         inputs = new_inputs
-    inputs = softmax(inputs)
+    #inputs = softmax(inputs)
     return inputs
 
 # Backpropagate error and store in neurons  [[[Get rid of loops]]]
@@ -103,16 +104,16 @@ def backward_propagate_error(network, expected,row,l_rate):
             inputs = [neuron['output'] for neuron in network[i - 1]]
         for neuron in network[i]:
             for j in range(len(inputs)):
-                neuron['updatedWeights'][j] += l_rate * neuron['delta'] * inputs[j]
-            neuron['updatedWeights'][-1] += l_rate * neuron['delta']
+                neuron['updatedWeights'][j] += neuron['delta'] * inputs[j]
+            neuron['updatedWeights'][-1] += neuron['delta']
             
             
 # Update network weights with error  [[[Get rid of loops]]]
-def update_weights(network,batchSize):
-    for i in range(len(network)):
-        for neuron in network[i]:
+def update_weights(network,l_rate):
+    for layer in network:
+        for neuron in layer:
             for j in range(len(neuron['weights'])):
-                neuron['weights'][j] += neuron['updatedWeights'][j]
+                neuron['weights'][j] += l_rate * neuron['updatedWeights'][j]
                 neuron['updatedWeights'][j] = 0
             
             
@@ -125,13 +126,14 @@ def train_network(network, train, l_rate, n_epoch, n_outputs,batchSize):
             #print i 
             row = train[i]
             outputs = forward_propagate(network, row)
-            expected = [0 for i in range(n_outputs)]
+            expected = [0 for k in range(n_outputs)]
             expected[row[-1]] = 1
             sum_error += sum([(expected[j]-outputs[j])**2 for j in range(len(expected))])
             backward_propagate_error(network, expected, row, l_rate)
             if (i % batchSize == 0):
-                update_weights(network,batchSize)
-        print('>epoch=%d, lrate=%.3f, error=%.3f' % (epoch, l_rate, sum_error))
+                update_weights(network,l_rate)
+        if (epoch % 100 == 0):
+            print('>epoch=%d, lrate=%.3f, error=%.3f' % (epoch, l_rate, sum_error))
         
 # Make a prediction with a network
 def predict(network, row):
@@ -177,6 +179,18 @@ x_training = x_training.astype(int)
 y_training = y_training.astype(int)
 y_training = y_training.reshape([len(y_training),1])
 TrainData = np.append(x_training, y_training, axis=1)      
+"""
+
+"""
+x_training = genfromtxt("../../assignment1/Question2_123/x_train.csv",delimiter = ",")
+y_training = genfromtxt("../../assignment1/Question2_123/y_train.csv",delimiter = ",")
+x_training = x_training.astype(int)
+y_training = y_training.astype(int)
+y_training = y_training.reshape([len(y_training),1])
+TrainData = np.append(x_training, y_training, axis=1)
+"""
+
+"""
 net = initialize_network(14,4,4)
 train_network(net,TrainData[0:1000],0.03,100,4,100)
 """
