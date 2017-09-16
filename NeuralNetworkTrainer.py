@@ -20,7 +20,7 @@ This code includes different pieces of building a neural network:
 import numpy as np
 from numpy import genfromtxt
 import pickle
-
+#import matplotlib.pyplot as plt
 
 """ 
 Activation Funcations
@@ -94,21 +94,47 @@ def back_prop(network,expected,inputs,l_rate):
 Training the network
 """
 
-def train(network,dataset,iterations,n_outputs,l_rate):
-    errors = list()
+def train(network,dataset,iterations,n_outputs,l_rate,testDataset, printAfter = 100):
+    TrainErrors = list()
+    TestErrors = list()
+    TrainAccuracyList = list()
+    TestAccuracyList = list()
+    
     for i in range(iterations):
-        sum_error = 0
+        Train_sum_error = 0.0
+        Test_sum_error = 0.0
         for row in dataset:
             expected = [0 for k in range(n_outputs)]
             expected[row[-1]] = 1
-            sum_error += sum((expected - forward_prop(network,row[:-1])[1])**2)
+            Train_sum_error += sum((expected - forward_prop(network,row[:-1])[-1])**2)
             back_prop(network,expected,row[:-1],l_rate)
-        errors.append(sum_error)
-        if (i % 100 == 0):
-            print 'error is',sum_error
-    with open("error.txt", 'a') as file_handler:
-        for item in errors:
-            file_handler.write("{0}\n".format(item))
+        TrainErrors.append(Train_sum_error)
+            
+        # Cost for Test set
+        for row in testDataset:
+            expected = [0 for k in range(n_outputs)]
+            expected[row[-1]] = 1
+            Test_sum_error += sum((expected - forward_prop(network,row[:-1])[-1])**2)
+        TestErrors.append(Test_sum_error)
+        
+        # printing errors every 100 (default) iterations
+        if (i % printAfter == 0):
+            print 'Train error is',Train_sum_error, 'Test error is', Test_sum_error
+        
+        # Testing classification accuracy on train and test datasets
+        TrainAccuracy = testingNetwork(dataset,network)
+        TestAccuracy = testingNetwork(testDataset,network)
+        TrainAccuracyList.append(TrainAccuracy)
+        TestAccuracyList.append(TestAccuracy)
+        # Saving errors in files
+        with open("TrainError.txt", 'a') as file_handler:
+            file_handler.write("{0}\n".format(Train_sum_error))
+        with open("TestError.txt", 'a') as file_handler:
+            file_handler.write("{0}\n".format(Test_sum_error))
+        with open("TrainAccuracy.txt", 'a') as file_handler:
+            file_handler.write("{0}\n".format(TrainAccuracy))
+        with open("TestAccuracy.txt", 'a') as file_handler:
+            file_handler.write("{0}\n".format(TestAccuracy))
 
 """
 Saving and Loading the net
@@ -127,7 +153,7 @@ Evaluation Section
 """
 
 def predict(network, row):
-    outputs = forward_prop(network, row)[1]
+    outputs = forward_prop(network, row)[-1]
     return np.argmax(outputs)
 
 # Calculate accuracy percentage
@@ -145,7 +171,29 @@ def testingNetwork(dataSet,network):
     actual = [row[-1] for row in dataSet]
     return accuracy_metric(actual,predictions)
 
-train(net,TrainData[0:100],1000,4,0.01)
+
+"""
+def plotResults(directory = '/Users/KarimM/Desktop/CloudOutputs/100_40/TrainAccuracy.txt'):
+    TrainAccuracies = list()
+    with open(directory) as f:
+        for line in f:
+            sTrainAccuracies.append(float(line))
+    #plt.figure(figsize=(70, 70))
+    plt.plot(TrainAccuracies,'b', label = "Training")
+    plt.plot(TestAccuracies,'r', label = "Testing")
+    plt.xlabel('Iteration')
+    plt.ylabel('Classification Accuracy')
+    plt.title('Classification Accuracy through iterations')
+    plt.yticks(np.arange(40, 101.0, 5.0))
+    plt.grid(True)
+    plt.legend()
+    #plt.show()
+    plt.savefig('test.png',dpi = 1080)
+"""
+
+"""
+The following is a script for training the network on the remote server
+"""
 
 """
 x_training = genfromtxt('../data/Question2_123/x_train.csv',delimiter = ",")
@@ -155,10 +203,25 @@ y_training = y_training.astype(int)
 y_training = y_training.reshape([len(y_training),1])
 TrainData = np.append(x_training, y_training, axis=1)  
 
+x_test = genfromtxt("../data/Question2_123/x_test.csv",delimiter = ",")
+y_test = genfromtxt("../data/Question2_123/y_test.csv",delimiter = ",")
+x_test = x_test.astype(int)
+y_test = y_test.astype(int)
+y_test = y_test.reshape([len(y_test),1])
+TestData = np.append(x_test, y_test, axis=1) 
 
-network = init_net(14,100,4)
-train(network,TrainData,1000,4,0.01)
+network = init_net(14,28,28,28,28,28,28,4)
+train(network,TrainData,1000,4,0.3,TestData,5)
 saveNet(network,"network.txt")
+"""
+
+"""
+x_training = genfromtxt("../../assignment1/Question2_123/x_train.csv",delimiter = ",")
+y_training = genfromtxt("../../assignment1/Question2_123/y_train.csv",delimiter = ",")
+x_training = x_training.astype(int)
+y_training = y_training.astype(int)
+y_training = y_training.reshape([len(y_training),1])
+TrainData = np.append(x_training, y_training, axis=1)
 """
 
 
