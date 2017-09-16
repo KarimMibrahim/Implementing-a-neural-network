@@ -28,7 +28,7 @@ def relu_diff(input):
         return 0.001
 
 def sigmoid(activation):
-    if activation < 0:
+    if activation < 0.0:
         return 1.0 - 1.0 / (1.0 + exp(activation))
     return 1.0 / (1.0 + exp(-activation))
         
@@ -36,7 +36,10 @@ def sigmoid_diff(output):
 	return output * (1.0 - output)
 
 def softmax(x):
-    return np.exp(x) / np.exp(x).sum()
+    """Compute the softmax of vector x in a numerically stable way."""
+    shiftx = x - np.max(x)
+    exps = np.exp(shiftx)
+    return exps / np.sum(exps)
 
 """
 Network Implementation
@@ -54,26 +57,29 @@ def initialize_network(*args):
     return network
 
 #Calculate neuron activation for an input
-def activate(weights, inputs):
+def MultiplyWeight(weights, inputs):
     activation = np.dot(weights[:-1],inputs)
     activation += weights[-1]
     return activation
 
 # Forward propagate input to a network output [[[Get rid of loops]]]
 def forward_propagate(network, row):
-    inputs = row[:-1]
+    inputs = row
     for i in range(len(network)):
         layer = network[i]
         new_inputs = []
         for neuron in layer:
-            activation = activate(neuron['weights'], inputs)
+            z = MultiplyWeight(neuron['weights'], inputs)
             if (i == (len(network) - 1)):
-                neuron['output'] = sigmoid(activation)
+                neuron['output'] = z
+                neuron['output'] = sigmoid(z)
             else:
-                neuron['output'] = relu(activation)
+                neuron['output'] = relu(z)
             new_inputs.append(neuron['output'])
         inputs = new_inputs
     #inputs = softmax(inputs)
+#    for i in range(len(network[-1])-1):
+#        network[-1][i]['output'] = inputs[i]
     return inputs
 
 # Backpropagate error and store in neurons  [[[Get rid of loops]]]
@@ -119,21 +125,26 @@ def update_weights(network,l_rate):
             
 # Train a network for a fixed number of epochs
 def train_network(network, train, l_rate, n_epoch, n_outputs,batchSize):
+    errors = list()
     for epoch in range(n_epoch):
         sum_error = 0.0
-        #updatedNetwork = network
         for i in range(len(train)):
             #print i 
             row = train[i]
-            outputs = forward_propagate(network, row)
+            outputs = forward_propagate(network, row[:-1])
             expected = [0 for k in range(n_outputs)]
             expected[row[-1]] = 1
             sum_error += sum([(expected[j]-outputs[j])**2 for j in range(len(expected))])
+            #sum_error += sum([(expected[j]* np.log(outputs[j])) for j in range(len(expected))])
             backward_propagate_error(network, expected, row, l_rate)
             if (i % batchSize == 0):
                 update_weights(network,l_rate)
-        if (epoch % 100 == 0):
+        errors.append(sum_error)
+        if (epoch % 5 == 0):
             print('>epoch=%d, lrate=%.3f, error=%.3f' % (epoch, l_rate, sum_error))
+    with open("error.txt", 'a') as file_handler:
+        for item in errors:
+            file_handler.write("{0}\n".format(item))
         
 # Make a prediction with a network
 def predict(network, row):
@@ -171,7 +182,30 @@ def loadNet(fileName):
         net = pickle.load(fp)
     return net
 
-  
+
+"""
+x_training = genfromtxt('../../data/Question2_123/x_train.csv',delimiter = ",")
+y_training = genfromtxt('../../data/Question2_123/y_train.csv',delimiter = ",")
+x_training = x_training.astype(int)
+y_training = y_training.astype(int)
+y_training = y_training.reshape([len(y_training),1])
+TrainData = np.append(x_training, y_training, axis=1)  
+#net = initialize_network(14,100,40,4)
+net = loadNet("network.txt")
+train_network(net,TrainData[1:1000],0.05,100,4,10)
+saveNet(net,"network.txt")
+"""
+
+"""
+import matplotlib.pyplot as plt
+err = list() 
+with open("/Users/KarimM/Desktop/CloudOutputs/error.txt", 'r') as file_handler:
+        for line in file_handler:
+            err.append(float(line))
+plt.plot(err)
+"""
+
+
 """
 x_training = genfromtxt("/Users/KarimM/Google Drive/PhD/Courses/Deep Learning/assignment1/Question2_123/x_train.csv",delimiter = ",")
 y_training = genfromtxt("/Users/KarimM/Google Drive/PhD/Courses/Deep Learning/assignment1/Question2_123/y_train.csv",delimiter = ",")
