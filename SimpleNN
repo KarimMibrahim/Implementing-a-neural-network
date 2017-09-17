@@ -5,6 +5,18 @@ Created on Fri Sep 15 12:42:39 2017
 
 @author: KarimM
 """
+
+
+"""
+This code includes different pieces of building a neural network: 
+    - init_net: initializes a network with one hidden layers and the given number of nodes
+    - forward_prop: passes an input through the network and returns the outputs of the network
+    - back_prop: performs back propoagation on the passed network for a given input and expected output and updates the weights of the network accordingly
+    - train: train a given network for on a given dataset through back propagation
+    - saveNet & loadNet: saves and loads a given network to the hard disk
+    - testingNetwork: evaluates the performance of the network on a given testset and return the accuracy
+"""
+
 import numpy as np
 from numpy import genfromtxt
 
@@ -34,14 +46,16 @@ def forward_prop(net,inputs):
     inputs = np.append(inputs,1)
     H_hidden = sigmoid(np.dot(net[0],inputs))
     H_hidden = np.append(H_hidden,1)
-    Outputs = sigmoid(np.dot(net[1],H_hidden))
+    #Outputs = sigmoid(np.dot(net[1],H_hidden))
+    Outputs = softmax(np.dot(net[1],H_hidden))
     return [H_hidden, Outputs]
 
 def back_prop(network,expected,inputs,l_rate):
     [hidden_output, outputs] = forward_prop(network,inputs)
     inputs = np.append(inputs,1)
     dE_dO = expected - outputs
-    dE_dZo = dE_dO * sigmoid_diff(outputs)
+    #dE_dZo = dE_dO * sigmoid_diff(outputs) # For Sigmoid
+    dE_dZo = dE_dO                          # For softmax
     dE_dWh = np.dot(np.reshape(dE_dZo,[len(dE_dZo),1]),np.reshape(hidden_output,[1,len(hidden_output)])) # I want [dE_dZo] as a vertical vector dot produt by hidden outputs as horizontal -> this gives weight update for each weight
     dE_dZh = np.dot(dE_dZo,network[1][:,:-1]) * sigmoid_diff(hidden_output[:-1])
     dE_dWo = np.dot(np.reshape(dE_dZh,[len(dE_dZh),1]),np.reshape(inputs,[1,len(inputs)])) # same as dE_dWh [figure out]
@@ -61,21 +75,21 @@ def train(network,dataset,iterations,n_outputs,l_rate):
         errors.append(sum_error)
         if (i % 100 == 0):
             print 'error is',sum_error
-    return errors 
-
+    with open("error.txt", 'a') as file_handler:
+        for item in errors:
+            file_handler.write("{0}\n".format(item))
 
 """
-x_training = genfromtxt('../data/Question2_123/x_train.csv',delimiter = ",")
-y_training = genfromtxt('../data/Question2_123/y_train.csv',delimiter = ",")
-x_training = x_training.astype(int)
-y_training = y_training.astype(int)
-y_training = y_training.reshape([len(y_training),1])
-TrainData = np.append(x_training, y_training, axis=1)  
-
-
-network = init_net(14,100,4)
-train(network,TrainData,1000,4,0.01)
+Saving and Loading the net
 """
+def saveNet(net,fileName):
+    with open(fileName, "wb") as fp:   #Pickling
+        pickle.dump(net, fp)
+
+def loadNet(fileName):
+    with open(fileName, "rb") as fp:   # Unpickling
+        net = pickle.load(fp)
+    return net
 
 """
 Evaluation Section
@@ -102,13 +116,20 @@ def testingNetwork(dataSet,network):
 
 
 """
-from sklearn import datasets
-dataset = sklearn.datasets.load_breast_cancer(return_X_y=False)        
-data = dataset.data[:,0:10]
-all_data = np.append(data, dataset.target.reshape([len(data),1]), 1)
-network = init_net(10,5,1)
-train(network,all_data,100)
+x_training = genfromtxt('../data/Question2_123/x_train.csv',delimiter = ",")
+y_training = genfromtxt('../data/Question2_123/y_train.csv',delimiter = ",")
+x_training = x_training.astype(int)
+y_training = y_training.astype(int)
+y_training = y_training.reshape([len(y_training),1])
+TrainData = np.append(x_training, y_training, axis=1)  
+
+
+network = init_net(14,100,4)
+train(network,TrainData,1000,4,0.01)
+saveNet(network,"network.txt")
 """
+
+
 """
 x_test = genfromtxt("/Users/KarimM/Google Drive/PhD/Courses/Deep Learning/assignment1/Question2_123/x_test.csv",delimiter = ",")
 y_test = genfromtxt("/Users/KarimM/Google Drive/PhD/Courses/Deep Learning/assignment1/Question2_123/y_test.csv",delimiter = ",")
