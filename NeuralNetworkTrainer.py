@@ -233,3 +233,17 @@ y_test = y_test.astype(int)
 y_test = y_test.reshape([len(y_test),1])
 TestData = np.append(x_test, y_test, axis=1)     
 """
+
+"""
+layers = genfromtxt('/Users/KarimM/Google Drive/PhD/Courses/Deep Learning/assignment1/Question2_4/b/w-100-40-4nonames.csv',delimiter = ",")
+biases = genfromtxt('/Users/KarimM/Google Drive/PhD/Courses/Deep Learning/assignment1/Question2_4/b/b-100-40-4nonames.csv',delimiter = ",")
+GivenNetwork[0] = layers[0:14].T
+GivenNetwork[1] = layers[14:114,0:40].T
+GivenNetwork[2] = layers[114:154,0:4].T
+
+GivenNetwork[0] = np.hstack((GivenNetwork[0],np.reshape(biases[0],[len(biases[0]),1])))
+GivenNetwork[1] = np.hstack((GivenNetwork[1],np.reshape(biases[1][0:40],[len(biases[1][0:40]),1])))
+GivenNetwork[2] = np.hstack((GivenNetwork[2],np.reshape(biases[2][0:4],[len(biases[2][0:4]),1])))
+
+X=[-1, 1, 1, 1, -1, -1, 1, -1, 1, 1, -1, -1, 1, 1, 3]
+"""
