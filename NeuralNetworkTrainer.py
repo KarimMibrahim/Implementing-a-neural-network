@@ -26,8 +26,10 @@ An example of a typical network training would be:
 
 import numpy as np
 from numpy import genfromtxt
+from random import shuffle
 import pickle
-#import matplotlib.pyplot as plt
+import copy
+import matplotlib.pyplot as plt
 
 """ 
 Activation Funcations
@@ -47,14 +49,15 @@ def softmax(x):
     exps = np.exp(shiftx)
     return exps / np.sum(exps)
 
+
 # ReLu Activation Function
 def relu(z):
     return np.maximum(z, 0.0)
 
 # ReLu derivative
 def relu_diff(z):
-    z[z<=0] = 0
-    z [z > 0] = 1
+    z[z<=0] = 0.0
+    z[z > 0] = 1.0
     return z
 
 
@@ -64,7 +67,7 @@ Initializing the network
 def init_net(*args):
     network = list()
     for layer_number in range(1,len(args)):
-        network.append(0.001 * np.random.rand(args[layer_number],args[layer_number-1]+1)) # adding 1 for the bias term
+        network.append(0.001 * (-0.5 + np.random.rand(args[layer_number],args[layer_number-1]+1))) # adding 1 for the bias term
     return network
     
 """
@@ -87,68 +90,77 @@ def forward_prop(net,inputs):
 """
 back propagation
 """
-def back_prop(network,expected,inputs,l_rate = 0.3):
+def back_prop(network,expected,inputs,dE_dW,l_rate = 0.3):
     Nodes_state = forward_prop(network,inputs)
     inputs = np.append(inputs,1)
-    dE_dO = Nodes_state[-1] - expected 
-    #dE_dZo = dE_dO * sigmoid_diff(outputs) # For Sigmoid
-    dE_dZ = dE_dO                          # For softmax
+    dE_dZ = Nodes_state[-1] - expected 
     for counter in range(len(network)-1,0,-1):
         hidden_output = Nodes_state[counter-1]
-        dE_dW = np.dot(np.reshape(dE_dZ,[len(dE_dZ),1]),np.reshape(hidden_output,[1,len(hidden_output)])) # I want [dE_dZo] as a vertical vector dot produt by hidden outputs as horizontal -> this gives weight update for each weight
-        dE_dZ = np.dot(dE_dZ,network[counter][:,:-1]) * relu_diff(hidden_output[:-1]) # hidden_output[:-1] to exclude the bias
-        network[counter] -= l_rate * dE_dW
-    dE_dW = np.dot(np.reshape(dE_dZ,[len(dE_dZ),1]),np.reshape(inputs,[1,len(inputs)]))
-    network[0] -= l_rate * dE_dW
+        dE_dW[counter] += np.dot(np.reshape(dE_dZ,[len(dE_dZ),1]),np.reshape(hidden_output,[1,len(hidden_output)])) 
+        dE_dZ = np.dot(dE_dZ,network[counter][:,:-1]) * relu_diff(hidden_output[:-1])
+    dE_dW[0] += np.dot(np.reshape(dE_dZ,[len(dE_dZ),1]),np.reshape(inputs,[1,len(inputs)]))
+    
+def updateWeights(network, dE_dW, l_rate = 0.3):
+    for counter in range(len(network)):
+        network[counter] -= l_rate * dE_dW[counter]
+
 
 """
 Training the network
 """
 
-def train(network,dataset,iterations,n_outputs,l_rate,testDataset, printAfter = 100):
-    # Initializing the error lists and accuracies
-    TrainErrors = list()
-    TestErrors = list()
-    TrainAccuracyList = list()
-    TestAccuracyList = list()
-    
+def train(network,dataset,iterations,n_outputs,l_rate, testDataset, batchSize = 100, printAfter = 100):    
+    # Initialize a list to store gradiends for batch updates, simply the network is copied so gradients would have the same structure as network
+    dE_dW = copy.deepcopy(network)
+    dE_dW = [aa*0 for i,aa in enumerate(dE_dW)]
+    datapoints = range(len(dataset)) 
+    shuffle(datapoints)
+   
     # Main loop for training (no batch gradient decent is implemented, weights are updated after each point)
     for i in range(iterations):
         Train_sum_error = 0.0
         Test_sum_error = 0.0
-        for row in dataset:
+        
+        for counter in datapoints:
+            row = dataset[counter]
             expected = [0 for k in range(n_outputs)]    
             expected[row[-1]] = 1
-            Train_sum_error += sum((expected - forward_prop(network,row[:-1])[-1])**2)
-            back_prop(network,expected,row[:-1],l_rate)
-        TrainErrors.append(Train_sum_error)
+            #Train_sum_error += sum((expected - forward_prop(network,row[:-1])[-1])**2)
+            Train_sum_error += sum(-1 * (expected * np.log(forward_prop(network,row[:-1])[-1])))
+            back_prop(network,expected,row[:-1],dE_dW,l_rate)
+            if (counter % batchSize == 0):
+                dE_dW = [aa/batchSize for j,aa in enumerate(dE_dW)]
+                updateWeights(network,dE_dW,l_rate)
+                dE_dW = [aa*0 for j,aa in enumerate(dE_dW)]
             
         # Cost for Test set
         for row in testDataset:
             expected = [0 for k in range(n_outputs)]
             expected[row[-1]] = 1
-            Test_sum_error += sum((expected - forward_prop(network,row[:-1])[-1])**2)
-        TestErrors.append(Test_sum_error)
-        
-        # printing errors every "printAfter" (100 default) iterations
-        if (i % printAfter == 0):
-            print 'Train error is',Train_sum_error, 'Test error is', Test_sum_error
+            #Test_sum_error += sum((expected - forward_prop(network,row[:-1])[-1])**2)
+            Test_sum_error += sum(-1 * (expected * np.log(forward_prop(network,row[:-1])[-1])))
         
         # Testing classification accuracy on train and test datasets
         TrainAccuracy = testingNetwork(dataset,network)
         TestAccuracy = testingNetwork(testDataset,network)
-        TrainAccuracyList.append(TrainAccuracy)
-        TestAccuracyList.append(TestAccuracy)
         
-        # Saving errors in files
-        with open("TrainError.txt", 'a') as file_handler:
-            file_handler.write("{0}\n".format(Train_sum_error))
-        with open("TestError.txt", 'a') as file_handler:
-            file_handler.write("{0}\n".format(Test_sum_error))
-        with open("TrainAccuracy.txt", 'a') as file_handler:
-            file_handler.write("{0}\n".format(TrainAccuracy))
-        with open("TestAccuracy.txt", 'a') as file_handler:
-            file_handler.write("{0}\n".format(TestAccuracy))
+        # printing errors every "printAfter" (100 default) iterations
+        if (i % printAfter == 0):
+            print 'Epoch', i, 'Train error:',Train_sum_error, 'Test error:', Test_sum_error
+            print 'Train Accuracy', TrainAccuracy,'Test Accuracy', TestAccuracy, '\n\n'
+        
+        shuffle(datapoints)
+       
+        
+#        # Saving errors in files
+#        with open("TrainError.txt", 'a') as file_handler:
+#            file_handler.write("{0}\n".format(Train_sum_error))
+#        with open("TestError.txt", 'a') as file_handler:
+#            file_handler.write("{0}\n".format(Test_sum_error))
+#        with open("TrainAccuracy.txt", 'a') as file_handler:
+#            file_handler.write("{0}\n".format(TrainAccuracy))
+#        with open("TestAccuracy.txt", 'a') as file_handler:
+#            file_handler.write("{0}\n".format(TestAccuracy))
 
 """
 Saving and Loading the net
@@ -190,14 +202,13 @@ def testingNetwork(dataSet,network):
 Plotting the errors and accuracies
 """
 
-"""
-def plotResults(Traindirectory = '/Users/KarimM/Desktop/CloudOutputs/100_40/TrainAccuracy.txt', TestDirectory = '/Users/KarimM/Desktop/CloudOutputs/100_40/TestAccuracy.txt'):
+def plotResults(Traindirectory = '/Users/KarimM/Desktop/CloudOutputs/100_40/', TestDirectory = '/Users/KarimM/Desktop/CloudOutputs/100_40/'):
     TrainAccuracies = list()
     TestAccuracies = list()
-    with open(Traindirectory) as f:
+    with open(Traindirectory + "TrainAccuracy.txt") as f:
         for line in f:
             TrainAccuracies.append(float(line))
-    with open(TestDirectory) as f:
+    with open(TestDirectory + "TestAccuracy.txt") as f:
         for line in f:
             TestAccuracies.append(float(line))
     #plt.figure(figsize=(70, 70))
@@ -210,8 +221,29 @@ def plotResults(Traindirectory = '/Users/KarimM/Desktop/CloudOutputs/100_40/Trai
     plt.grid(True)
     plt.legend()
     #plt.show()
-    plt.savefig('Plot.png',dpi = 1080)
-"""
+    plt.savefig(Traindirectory + '100Accuracies.png',dpi = 1080)
+    
+    
+    TrainError = list()
+    TestError = list()
+    with open(Traindirectory + "TrainError.txt") as f:
+        for line in f:
+            TrainError.append(float(line))
+    with open(TestDirectory + "TestError.txt") as f:
+        for line in f:
+            TestError.append(float(line))
+    plt.figure()
+    plt.plot(TrainError,'b', label = "Training")
+    plt.plot(TestError,'r', label = "Testing")
+    plt.xlabel('Iteration')
+    plt.ylabel('Cost')
+    plt.title('Sum of Square error through iterations')
+    #plt.yticks(np.arange(40, 101.0, 5.0))
+    plt.grid(True)
+    plt.legend()
+    #plt.show()
+    plt.savefig(Traindirectory + '100Errors.png',dpi = 1080)
+
 
 
 """
@@ -296,8 +328,8 @@ def GenerateGradientsFor14_100_40_4(weightsDir = "/Users/KarimM/Google Drive/PhD
 
 def GenerateGradientsFor14_28_6_4(weightsDir = "/Users/KarimM/Google Drive/PhD/Courses/Deep Learning/assignment1/Question2_4/b/"):
     # Loading the weights and initializing outputs
-    layers = genfromtxt(weightsDir + "w-28-6-4noname.csv",delimiter = ",")
-    biases = genfromtxt(weightsDir + "b-28-6-4noname.csv",delimiter = ",")
+    layers = genfromtxt(weightsDir + "w-28-6-4nonames.csv",delimiter = ",")
+    biases = genfromtxt(weightsDir + "b-28-6-4nonames.csv",delimiter = ",")
     network = init_net(14,28,28,28,28,28,28,4)
     dW = init_net(14,28,28,28,28,28,28,4)
     dB = list()
@@ -348,8 +380,8 @@ def GenerateGradientsFor14_28_6_4(weightsDir = "/Users/KarimM/Google Drive/PhD/C
 
 def GenerateGradientsFor14_28_4(weightsDir = "/Users/KarimM/Google Drive/PhD/Courses/Deep Learning/assignment1/Question2_4/b/"):
     # Loading the weights and initializing outputs
-    layers = genfromtxt(weightsDir + "w-14-28-4noname.csv",delimiter = ",")
-    biases = genfromtxt(weightsDir + "b-14-28-4noname.csv",delimiter = ",")
+    layers = genfromtxt(weightsDir + "w-14-28-4nonames.csv",delimiter = ",")
+    biases = genfromtxt(weightsDir + "b-14-28-4nonames.csv",delimiter = ",")
     network = init_net(14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,4)
     dW = init_net(14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,4)
     dB = list()
@@ -391,28 +423,7 @@ def GenerateGradientsFor14_28_4(weightsDir = "/Users/KarimM/Google Drive/PhD/Cou
         for row in dB:
             writer.writerow(row)
 
-
-"""
-The following is a script for training the network on the remote server
-"""
-
-
-x_training = genfromtxt('../../data/Question2_123/x_train.csv',delimiter = ",")
-y_training = genfromtxt('../../data/Question2_123/y_train.csv',delimiter = ",")
-x_training = x_training.astype(int)
-y_training = y_training.astype(int)
-y_training = y_training.reshape([len(y_training),1])
-TrainData = np.append(x_training, y_training, axis=1)  
-
-x_test = genfromtxt("../../data/Question2_123/x_test.csv",delimiter = ",")
-y_test = genfromtxt("../../data/Question2_123/y_test.csv",delimiter = ",")
-x_test = x_test.astype(int)
-y_test = y_test.astype(int)
-y_test = y_test.reshape([len(y_test),1])
-TestData = np.append(x_test, y_test, axis=1) 
-
-network = init_net(14,28,28,28,28,28,28,4)
-#network = init_net(14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,4)
-train(network,TrainData,1000,4,0.003,TestData,5)
-saveNet(network,"network.txt")
-
+TrainData =readTrainData()
+TestData =readTestData()
+network = init_net(14,28,28,28,28,4)
+train(network,TrainData[1:100],100,4,0.005,TestData[1:10],1,5)

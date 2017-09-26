@@ -226,5 +226,6 @@ TrainData = np.append(x_training, y_training, axis=1)
 
 """
 net = initialize_network(14,4,4)
+net = initialize_network(14,28,28,28,28,28,28,4)
 train_network(net,TrainData[0:1000],0.03,100,4,100)
 """
